@@ -1,0 +1,242 @@
+import pygame
+from ustawienia import *
+from sudoku_solver import is_safe, solve, generate, next_free
+import sys
+
+
+class Game:
+
+    def __init__(self):
+        pygame.init()
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        pygame.display.set_caption("Sudoku")
+        self.running = True
+        # 1 - easy 2 - medium 3 - hard
+        self.difficulty = 1
+        self.grid = generate(self.difficulty)
+        self.temp = temp_board
+        self.mousepos = None
+        self.selected = None
+        self.font = pygame.font.SysFont("arial", int(gap/2))
+        self.font_temp = pygame.font.SysFont("arial", int(5*gap/12))
+        self.wrong = 0
+        self.start_time = 0
+        self.show_animation = False
+        self.new_button = Image("img/ngbutton.png", 200, 50, lspace+int(9.2*gap), uspace)
+        self.off_button = Image("img/off.png", 100, 50, lspace+int(9.9*gap), uspace+int(1.5*gap))
+        self.on_button = Image("img/on.png", 100, 50, lspace + int(9.9*gap), uspace + int(1.5*gap))
+        self.ez_button = Image("img/easy.png", 128, 42, lspace + int(9.5*gap), uspace+3*gap)
+        self.med_button = Image("img/medium.png", 128, 42, lspace + int(9.5*gap), uspace + 4 * gap)
+        self.hard_button = Image("img/hard.png", 128, 42, lspace + int(9.5*gap), uspace + 5 * gap)
+
+    def visualise(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+        pos = next_free(self.grid)
+        if not pos:
+            return True
+        for i in range(10):
+            if is_safe(self.grid, i, pos):
+                self.grid[pos[1]][pos[0]] = i
+                self.draw()
+                self.draw_square(pos, green)
+                pygame.display.update()
+                pygame.time.delay(100)
+                if self.visualise():
+                    return True
+                self.draw_square(pos, red)
+                pygame.display.update()
+                pygame.time.delay(100)
+                self.grid[pos[1]][pos[0]] = 0
+                self.draw()
+        return False
+
+    def drawGrid(self):
+        # draw the contours
+        self.screen.fill(white)
+        for x in range(10):
+            if x % 3 == 0:
+                thicc = 2
+            else:
+                thicc = 1
+            pygame.draw.line(self.screen, black, (lspace, gap * x + uspace), (gap * 9 + lspace, gap * x + uspace), thicc)
+        for x in range(10):
+            if x % 3 == 0:
+                thicc = 2
+            else:
+                thicc = 1
+            pygame.draw.line(self.screen, black, (gap * x + lspace, uspace), (gap * x + lspace, 9 * gap + uspace), thicc)
+
+        # draw numbers on grid
+        for y in range(9):
+            for x in range(9):
+                if self.grid[y][x] == 0:
+                    continue
+                text = self.font.render(str(self.grid[y][x]), True, black)
+                self.screen.blit(text, (lspace + x * gap + int(2*gap/5), uspace + y * gap + int(gap/5)))
+
+        # draw temporary numbers
+        for y in range(9):
+            for x in range(9):
+                if self.temp[y][x] == 0:
+                    continue
+                text = self.font_temp.render(str(self.temp[y][x]), True, grey)
+                self.screen.blit(text, (lspace + x * gap + int(gap/6), uspace + y * gap))
+        # draw squares
+        hint = 0
+        if self.selected is not None:
+            hint = max(self.grid[self.selected[1]][self.selected[0]], self.temp[self.selected[1]][self.selected[0]])
+        if hint:
+            for y in range(9):
+                for x in range(9):
+                    if self.grid[y][x] == hint:
+                        self.draw_square((x, y), blue)
+
+    def run(self):
+        while self.running:
+            self.events()
+            self.update()
+            self.draw()
+        pygame.quit()
+        sys.exit()
+
+    def draw(self):
+        self.drawGrid()
+        if self.selected is not None:
+            self.draw_square(self.selected, red)
+        # attempts
+        text = self.font.render("Unsuccessful attempts: " + str(self.wrong), True, black)
+        self.screen.blit(text, (lspace, (9*gap+uspace)))
+        # timer
+        time = self.font.render("Time: " + str((pygame.time.get_ticks()-self.start_time)//1000) + " sec", True, black)
+        self.screen.blit(time, (7*gap+lspace, (9 * gap + uspace)))
+        # new game button
+        self.screen.blit(self.new_button.image, (self.new_button.x, self.new_button.y))
+        # disable/enable animation
+        self.screen.blit(self.font.render("Visualisation", True, black), (lspace+int(9.5*gap), uspace+gap))
+        if self.show_animation:
+            self.screen.blit(self.on_button.image, (self.on_button.x, self.on_button.y))
+        else:
+            self.screen.blit(self.off_button.image, (self.off_button.x, self.off_button.y))
+        # difficulty
+        self.screen.blit(self.ez_button.image, (self.ez_button.x, self.ez_button.y))
+        self.screen.blit(self.med_button.image, (self.med_button.x, self.med_button.y))
+        self.screen.blit(self.hard_button.image, (self.hard_button.x, self.hard_button.y))
+        pygame.draw.rect(self.screen, black, self.ez_button.image_rect, 3)
+        pygame.draw.rect(self.screen, black, self.med_button.image_rect, 3)
+        pygame.draw.rect(self.screen, black, self.hard_button.image_rect, 3)
+        if self.difficulty == 1:
+            pygame.draw.rect(self.screen, purple, self.ez_button.image_rect, 3)
+        elif self.difficulty == 2:
+            pygame.draw.rect(self.screen, purple, self.med_button.image_rect, 3)
+        elif self.difficulty == 3:
+            pygame.draw.rect(self.screen, purple, self.hard_button.image_rect, 3)
+        pygame.display.update()
+
+    def update(self):
+        self.mousepos = pygame.mouse.get_pos()
+
+    def events(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if self.new_button.image_rect.collidepoint(self.mousepos):
+                    self.new_game()
+                elif self.on_button.image_rect.collidepoint(self.mousepos):
+                    self.show_animation = not self.show_animation
+                elif self.ez_button.image_rect.collidepoint(self.mousepos):
+                    self.difficulty = 1
+                elif self.med_button.image_rect.collidepoint(self.mousepos):
+                    self.difficulty = 2
+                elif self.hard_button.image_rect.collidepoint(self.mousepos):
+                    self.difficulty = 3
+
+                square = self.get_square()
+                if not square:
+                    self.selected = None
+                else:
+                    self.selected = square
+            elif event.type == pygame.KEYDOWN:
+                key_pressed = pygame.key.name(event.key)
+                if key_pressed == 'space':
+                    self.temp = [[0] * 9 for _ in range(9)]
+                    self.selected = None
+                    if self.show_animation:
+                        self.visualise()
+                    else:
+                        solve(self.grid, False)
+
+                if self.selected is None:
+                    continue
+                elif key_pressed in "123456789":
+                    self.insert_number(self.selected, int(key_pressed))
+                elif key_pressed == 'return':
+                    self.confirm_number(self.selected)
+                elif key_pressed == 'left' and self.selected[0] > 0:
+                    self.selected[0] -= 1
+                elif key_pressed == 'right' and self.selected[0] < 8:
+                    self.selected[0] += 1
+                elif key_pressed == 'down' and self.selected[1] < 8:
+                    self.selected[1] += 1
+                elif key_pressed == 'up' and self.selected[1] > 0:
+                    self.selected[1] -= 1
+                elif key_pressed == 'backspace':
+                    self.remove_number(self.selected)
+
+    # returns false if mouse not in grid, position of square otherwise
+    def get_square(self):
+        # if not in grid
+        if self.mousepos[0] < lspace or self.mousepos[0] >= gap * 9 + lspace:
+            return False
+        if self.mousepos[1] < uspace or self.mousepos[1] >= gap * 9 + uspace:
+            return False
+        return [(self.mousepos[0] - lspace) // gap, (self.mousepos[1] - uspace)// gap]
+
+    def draw_square(self, selected, color):
+        pygame.draw.rect(self.screen, color, (lspace + selected[0] * gap+1, uspace + selected[1] * gap+1, gap-1, gap), 3)
+
+    def insert_number(self, pos, number):
+        if not self.grid[pos[1]][pos[0]]:
+            self.temp[pos[1]][pos[0]] = int(number)
+
+    def remove_number(self, pos):
+        self.temp[pos[1]][pos[0]] = 0
+
+    def confirm_number(self, pos):
+        grid_copy = [row[:] for row in self.grid]
+        if is_safe(self.grid, self.temp[pos[1]][pos[0]], pos):
+            grid_copy[pos[1]][pos[0]] = self.temp[pos[1]][pos[0]]
+            if solve(grid_copy, False):
+                self.grid[pos[1]][pos[0]] = self.temp[pos[1]][pos[0]]
+                self.temp[pos[1]][pos[0]] = 0
+            else:
+                self.wrong += 1
+        else:
+            self.wrong += 1
+        if not next_free(self.grid):
+            print("koniec gry")
+            self.new_game()
+
+    def new_game(self):
+        self.temp = [[0] * 9 for _ in range(9)]
+        self.selected = None
+        self.grid = generate(self.difficulty)
+        self.wrong = 0
+        self.start_time = pygame.time.get_ticks()
+
+
+class Image():
+
+    def __init__(self, path, width, height, x, y):
+        self.x = x
+        self.y = y
+        self.image = pygame.transform.scale(pygame.image.load(path), (width, height))
+        self.image_rect = pygame.Surface.get_rect(self.image).move((x, y))
+
+
+gra = Game()
+gra.run()
