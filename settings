@@ -1,0 +1,17 @@
+black = (0, 0, 0)
+white = (229, 233, 234)
+red = (255, 0, 0)
+grey = (110, 110, 110)
+green = (50, 190, 50)
+blue = (40, 100, 200)
+purple = (200, 0, 200)
+# grid settings
+WIDTH = 900
+HEIGHT = 750
+gap = 70
+# empty space from left and up
+lspace = 50
+uspace = 20
+
+# for holding temporary values
+temp_board = [[0]*9 for _ in range(9)]
